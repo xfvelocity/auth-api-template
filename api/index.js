@@ -4,10 +4,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 require("dotenv/config");
 
-const {
-  authenticateToken,
-  authenticateClientToken,
-} = require("./helpers/generic");
+const { authenticateToken } = require("./helpers/generic");
 
 const rateLimit = require("express-rate-limit");
 
@@ -32,14 +29,10 @@ app.use(
 const publicUrls = ["/api/register", "/api/login"];
 
 app.use(async (req, res, next) => {
-  const clientToken = authenticateClientToken(req, res);
-
-  if (clientToken.success) {
-    if (publicUrls.some((url) => req.originalUrl.includes(url))) {
-      return next();
-    } else {
-      return authenticateToken(req, res, next);
-    }
+  if (publicUrls.some((url) => req.originalUrl.includes(url))) {
+    return next();
+  } else {
+    return authenticateToken(req, res, next);
   }
 });
 

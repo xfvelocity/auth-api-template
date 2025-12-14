@@ -8,24 +8,36 @@ const registerUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const passwordRegex = new RegExp("^(?=.*[A-Za-z])(?=.*d)[A-Za-zd]{6,}$");
+    const passwordRegex = new RegExp("^(?=.*[A-Za-z])(?=.*d).{6,}$");
+    const emailRegex = new RegExp(
+      "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+.[A-Za-z]{2,}$"
+    );
 
-    if (passwordRegex.test(password)) {
+    console.log(email, password);
+
+    if (email.length === 0) {
+      return res.status(500).send({ message: "Email is required" });
+    }
+
+    if (!emailRegex.test(email)) {
+      return res.status(500).send({ message: "Email is not valid" });
+    }
+
+    if (password.length === 0) {
+      return res.status(500).send({ message: "Password is required" });
+    }
+
+    if (!passwordRegex.test(password)) {
       return res
         .status(500)
         .send({ message: "Password must include 6 characters and 1 number" });
     }
 
-    if (password)
-      if (!email) {
-        return res.status(500).send({ message: "Email is required" });
-      } else {
-        const emailExists = await User.findOne({ email });
+    const emailExists = await User.findOne({ email });
 
-        if (emailExists) {
-          return res.status(500).send({ message: "Email is already taken" });
-        }
-      }
+    if (emailExists) {
+      return res.status(500).send({ message: "Email is already taken" });
+    }
 
     const hashedPassword = await hashPassword(password);
     const user = await User.create({
@@ -42,6 +54,7 @@ const registerUser = async (req, res) => {
       accessToken,
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Server Error", error });
   }
 };
@@ -71,6 +84,7 @@ const loginUser = async (req, res) => {
       return res.status(500).send({ message: "Incorrect email or password" });
     }
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Server Error", error });
   }
 };
