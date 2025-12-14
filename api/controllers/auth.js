@@ -3,6 +3,10 @@ const { v4: uuidv4 } = require("uuid");
 const jwt = require("jsonwebtoken");
 const { User } = require("../models/index");
 
+const { OAuth2Client } = require("google-auth-library");
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
 // ** Register **
 const registerUser = async (req, res) => {
   try {
@@ -89,7 +93,38 @@ const loginUser = async (req, res) => {
   }
 };
 
+// ** Google **
+const googleAuth = async (req, res) => {
+  const { token } = req.body;
+
+  try {
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+
+    const user = {
+      googleId: payload.sub,
+      email: payload.email,
+      name: payload.name,
+    };
+
+    const accessToken = jwt.sign(user.toJSON(), process.env.JWT_SECRET);
+
+    res.status(200).send({
+      email: user.email,
+      uuid: user.uuid,
+      accessToken,
+    });
+  } catch (err) {
+    res.status(401).json({ error: "Invalid Google token" });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
+  googleAuth,
 };

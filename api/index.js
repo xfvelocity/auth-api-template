@@ -26,7 +26,7 @@ app.use(
   })
 );
 
-const publicUrls = ["/api/register", "/api/login"];
+const publicUrls = ["/api/auth/register", "/api/auth/login"];
 
 app.use(async (req, res, next) => {
   if (publicUrls.some((url) => req.originalUrl.includes(url))) {
