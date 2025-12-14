@@ -1,5 +1,8 @@
 const bcrupt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const { EmailValidation } = require("../models/index");
+
+const { MailtrapClient } = require("mailtrap");
 
 // ** Auth **
 const hashPassword = (password) => {
@@ -64,9 +67,47 @@ const paginatedList = async (req, model, query, sortBy = {}) => {
   };
 };
 
+const sendEmailVerification = async (user) => {
+  console.log(process.env.MAILTRAP_TOKEN);
+  const client = new MailtrapClient({
+    endpoint: process.env.MAILTRAP_ENDPOINT,
+    token: process.env.MAILTRAP_TOKEN,
+  });
+
+  const emailVerificationCode = Math.floor(10000 + Math.random() * 90000);
+
+  await client.send({
+    from: {
+      name: "Email Token",
+      email: process.env.MAILTRAP_FROM_EMAIL,
+    },
+    to: [
+      {
+        email: user.email,
+      },
+    ],
+    template_uuid: process.env.MAILTRAP_TEMPLATE,
+    template_variables: {
+      user_email: user.email,
+      code: emailVerificationCode,
+    },
+  });
+
+  const expiryDate = new Date();
+
+  expiryDate.setMinutes(expiryDate.getMinutes() + 15);
+
+  await EmailValidation.create({
+    uuid: user.uuid,
+    code: emailVerificationCode,
+    expiresAt: expiryDate,
+  });
+};
+
 module.exports = {
   paginatedList,
   hashPassword,
   comparePassword,
   authenticateToken,
+  sendEmailVerification,
 };

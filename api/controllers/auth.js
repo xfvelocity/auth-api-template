@@ -1,7 +1,11 @@
-const { hashPassword, comparePassword } = require("../helpers/generic");
+const {
+  hashPassword,
+  comparePassword,
+  sendEmailVerification,
+} = require("../helpers/generic");
 const { v4: uuidv4 } = require("uuid");
 const jwt = require("jsonwebtoken");
-const { User } = require("../models/index");
+const { User, EmailValidation } = require("../models/index");
 
 const { OAuth2Client } = require("google-auth-library");
 
@@ -52,9 +56,11 @@ const registerUser = async (req, res) => {
 
     const accessToken = jwt.sign(user.toJSON(), process.env.JWT_SECRET);
 
+    await sendEmailVerification(user);
+
     return res.status(200).send({
-      email: user.email,
       uuid: user.uuid,
+      emailVerified: false,
       accessToken,
     });
   } catch (error) {
@@ -77,15 +83,64 @@ const loginUser = async (req, res) => {
     const passwordMatch = await comparePassword(password, user.password);
 
     if (passwordMatch) {
+      let userObject = {
+        uuid: user.uuid,
+        emailVerified: user.emailVerified,
+      };
+
+      if (user.emailVerified) {
+        const accessToken = jwt.sign(user.toJSON(), process.env.JWT_SECRET);
+
+        userObject = {
+          ...userObject,
+          name: user.name,
+          email: user.email,
+          accessToken,
+        };
+      } else {
+        await sendEmailVerification(user);
+      }
+
+      res.status(200).send(userObject);
+
+      return userObject;
+    } else {
+      return res.status(500).send({ message: "Incorrect email or password" });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server Error", error });
+  }
+};
+
+// ** Verify code **
+const verifyCode = async (req, res) => {
+  try {
+    const { uuid, code } = req.body;
+
+    const emailVerification = await EmailValidation.findOne({ uuid });
+
+    if (!emailVerification) {
+      return res.status(400).send({ message: "Code has expired" });
+    }
+
+    if (emailVerification.code === parseInt(code)) {
+      const user = await User.findOne({ uuid });
+
+      await User.findByIdAndUpdate(user._id, { emailVerified: true });
+      await EmailValidation.findByIdAndDelete(emailVerification._id);
+
       const accessToken = jwt.sign(user.toJSON(), process.env.JWT_SECRET);
 
       res.status(200).send({
+        name: user.name,
         email: user.email,
         uuid: user.uuid,
+        emailVerified: true,
         accessToken,
       });
     } else {
-      return res.status(500).send({ message: "Incorrect email or password" });
+      return res.status(400).send({ message: "Invalid code" });
     }
   } catch (error) {
     console.error(error);
@@ -127,4 +182,5 @@ module.exports = {
   registerUser,
   loginUser,
   googleAuth,
+  verifyCode,
 };

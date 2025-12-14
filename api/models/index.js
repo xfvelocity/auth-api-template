@@ -13,10 +13,28 @@ const userSchema = new Schema({
     unique: true,
   },
   password: String,
+  emailVerified: Boolean,
 });
 
 const UserModel = mongoose.model("User", userSchema);
 
+// ** Email Verification **
+const emailValidationSchema = new Schema({
+  uuid: String,
+  code: Number,
+  createdAt: {
+    type: Date,
+    default: Date.now(),
+    expires: "15m",
+  },
+});
+
+const EmailValidationModel = mongoose.model(
+  "EmailValidation",
+  emailValidationSchema
+);
+
 module.exports = {
   User: UserModel,
+  EmailValidation: EmailValidationModel,
 };

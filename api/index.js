@@ -26,7 +26,12 @@ app.use(
   })
 );
 
-const publicUrls = ["/api/auth/register", "/api/auth/login"];
+const publicUrls = [
+  "/api/auth/register",
+  "/api/auth/login",
+  "/api/auth/google-auth",
+  "/api/auth/email-verify",
+];
 
 app.use(async (req, res, next) => {
   if (publicUrls.some((url) => req.originalUrl.includes(url))) {
