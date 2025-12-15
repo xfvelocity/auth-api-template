@@ -29,8 +29,8 @@ app.use(
 const publicUrls = [
   "/api/auth/register",
   "/api/auth/login",
-  "/api/auth/google-auth",
-  "/api/auth/email-verify",
+  "/api/auth/google",
+  "/api/auth/verify/email",
 ];
 
 app.use(async (req, res, next) => {

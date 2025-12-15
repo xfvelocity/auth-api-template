@@ -15,6 +15,6 @@ router.post("/auth/login", loginUser);
 
 router.post("/auth/google", googleAuth);
 
-router.post("/auth/email-verify", verifyCode);
+router.post("/auth/verify/email", verifyCode);
 
 module.exports = router;

@@ -14,14 +14,12 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 // ** Register **
 const registerUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { name, email, password } = req.body;
 
     const passwordRegex = new RegExp("^(?=.*[A-Za-z])(?=.*d).{6,}$");
     const emailRegex = new RegExp(
       "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+.[A-Za-z]{2,}$"
     );
-
-    console.log(email, password);
 
     if (email.length === 0) {
       return res.status(500).send({ message: "Email is required" });
@@ -50,18 +48,16 @@ const registerUser = async (req, res) => {
     const hashedPassword = await hashPassword(password);
     const user = await User.create({
       uuid: uuidv4(),
+      name,
       email,
       password: hashedPassword,
     });
-
-    const accessToken = jwt.sign(user.toJSON(), process.env.JWT_SECRET);
 
     await sendEmailVerification(user);
 
     return res.status(200).send({
       uuid: user.uuid,
       emailVerified: false,
-      accessToken,
     });
   } catch (error) {
     console.error(error);
@@ -95,6 +91,7 @@ const loginUser = async (req, res) => {
           ...userObject,
           name: user.name,
           email: user.email,
+          googleId: user.googleId,
           accessToken,
         };
       } else {
@@ -160,21 +157,43 @@ const googleAuth = async (req, res) => {
 
     const payload = ticket.getPayload();
 
-    const user = {
-      googleId: payload.sub,
-      email: payload.email,
-      name: payload.name,
-    };
+    let user = await User.findOne({ googleId: payload.sub });
+
+    if (!user) {
+      const newUser = await User.create({
+        uuid: uuidv4(),
+        name: payload.name,
+        email: payload.email,
+        emailVerified: payload.email_verified,
+        googleId: payload.sub,
+        password: null,
+      });
+
+      if (!payload.email_verified) {
+        await sendEmailVerification(newUser);
+
+        return res.status(200).send({
+          uuid: user.uuid,
+          emailVerified: false,
+        });
+      }
+
+      user = newUser;
+    }
 
     const accessToken = jwt.sign(user.toJSON(), process.env.JWT_SECRET);
 
-    res.status(200).send({
+    return res.status(200).send({
+      name: user.name,
       email: user.email,
       uuid: user.uuid,
+      emailVerified: user.emailVerified,
+      googleId: user.googleId,
       accessToken,
     });
   } catch (err) {
-    res.status(401).json({ error: "Invalid Google token" });
+    console.error(err);
+    res.status(401).json({ message: "Invalid Google token", error: err });
   }
 };
 
